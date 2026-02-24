@@ -1,4 +1,6 @@
+import 'package:condominio_app/presentation/pages/assemblee_page.dart';
 import 'package:flutter/material.dart';
+
 import 'condomini_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -45,7 +47,7 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: const Icon(Icons.groups),
               title: const Text('Assemblee'),
-              onTap: () => _onSelectItem("Assemblee", const Center(child: Text("Assemblee"))),
+              onTap: () => _onSelectItem("Assemblee", const AssembleePage()),
             ),
             ListTile(
               leading: const Icon(Icons.person),
