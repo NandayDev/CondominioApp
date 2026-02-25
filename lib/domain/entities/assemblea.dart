@@ -8,10 +8,12 @@ class Assemblea extends Equatable {
   final int? id;
   final DateTime dataPrimaConvocazione;
   final DateTime dataSecondaConvocazione;
-  final DateTime? dataFine; // Nuova colonna: obbligatoria solo se avvenuta
-  final String luogo; // Nuova colonna: obbligatoria sempre
+  final DateTime? dataFine;
+  final String luogo;
   final AssembleaStato stato;
-  final List<int> partecipantiIds; // IDs dei condomini partecipanti
+  final List<int> partecipantiIds;
+  final int? presidenteId; // Nuova colonna
+  final int? segretarioId; // Nuova colonna
   final List<Argomento> argomenti;
 
   const Assemblea({
@@ -22,9 +24,22 @@ class Assemblea extends Equatable {
     required this.luogo,
     required this.stato,
     required this.partecipantiIds,
+    this.presidenteId,
+    this.segretarioId,
     required this.argomenti,
   });
 
   @override
-  List<Object?> get props => [id, dataPrimaConvocazione, dataSecondaConvocazione, dataFine, luogo, stato, partecipantiIds, argomenti];
+  List<Object?> get props => [
+    id,
+    dataPrimaConvocazione,
+    dataSecondaConvocazione,
+    dataFine,
+    luogo,
+    stato,
+    partecipantiIds,
+    presidenteId,
+    segretarioId,
+    argomenti,
+  ];
 }

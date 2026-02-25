@@ -20,13 +20,15 @@ class CondominiCubit extends Cubit<CondominiState> {
     required this.deleteCondominoUseCase,
   }) : super(CondominiInitial());
 
-  Future<void> fetchCondomini() async {
+  Future<List<Condomino>> fetchCondomini() async {
     try {
       emit(CondominiLoading());
       final condomini = await getCondominiUseCase();
       emit(CondominiLoaded(condomini));
+      return condomini;
     } catch (e) {
       emit(CondominiError("Errore nel caricamento dei condòmini: ${e.toString()}"));
+      return [];
     }
   }
 

@@ -18,6 +18,9 @@ dependencies:
   path_provider: ^2.1.5
   get_it: ^8.0.3
   intl: ^0.20.2
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:

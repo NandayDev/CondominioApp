@@ -92,10 +92,24 @@ void _initDbTask(_DbTaskParams params) {
       db.execute('ALTER TABLE assemblee ADD COLUMN luogo TEXT NOT NULL DEFAULT \'\'');
       db.execute('ALTER TABLE assemblee ADD COLUMN data_fine TEXT');
       db.execute('PRAGMA user_version = 4');
+      currentVersion = 4;
+    }
+
+    if (currentVersion < 5) {
+      db.execute('ALTER TABLE argomenti ADD COLUMN tipo TEXT NOT NULL DEFAULT \'custom\'');
+      db.execute('ALTER TABLE argomenti ADD COLUMN metadata TEXT');
+      db.execute('PRAGMA user_version = 5');
+      currentVersion = 5;
+    }
+
+    if (currentVersion < 6) {
+      db.execute('ALTER TABLE assemblee ADD COLUMN presidente_id INTEGER');
+      db.execute('ALTER TABLE assemblee ADD COLUMN segretario_id INTEGER');
+      db.execute('PRAGMA user_version = 6');
     }
 
   } finally {
-    db.close();
+    db.dispose();
   }
 }
 
@@ -108,7 +122,7 @@ List<Map<String, dynamic>> _getCondominiTask(_DbTaskParams params) {
     final ResultSet resultSet = db.select('SELECT * FROM condomini');
     return resultSet.map((row) => Map<String, dynamic>.from(row)).toList();
   } finally {
-    db.close();
+    db.dispose();
   }
 }
 
@@ -158,7 +172,7 @@ List<Map<String, dynamic>> _getAssembleeTask(_DbTaskParams params) {
     }
     return result;
   } finally {
-    db.close();
+    db.dispose();
   }
 }
 
@@ -177,16 +191,28 @@ void _saveAssembleaTask(_DbTaskParams params) {
 
     int assembleaId;
     if (data['id'] == null) {
-      final stmt = db.prepare('INSERT INTO assemblee (data_prima, data_seconda, data_fine, luogo, stato) VALUES (?, ?, ?, ?, ?)');
-      stmt.execute([data['data_prima'], data['data_seconda'], data['data_fine'], data['luogo'], data['stato']]);
+      final stmt = db.prepare(
+          'INSERT INTO assemblee (data_prima, data_seconda, data_fine, luogo, stato, presidente_id, segretario_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      stmt.execute(
+          [data['data_prima'], data['data_seconda'], data['data_fine'], data['luogo'], data['stato'], data['presidente_id'], data['segretario_id']]);
       assembleaId = db.lastInsertRowId;
-      stmt.close();
+      stmt.dispose();
     } else {
       assembleaId = data['id'];
-      final stmt = db.prepare('UPDATE assemblee SET data_prima = ?, data_seconda = ?, data_fine = ?, luogo = ?, stato = ? WHERE id = ?');
-      stmt.execute([data['data_prima'], data['data_seconda'], data['data_fine'], data['luogo'], data['stato'], assembleaId]);
-      stmt.close();
-
+      final stmt = db.prepare(
+          'UPDATE assemblee SET data_prima = ?, data_seconda = ?, data_fine = ?, luogo = ?, stato = ?, presidente_id = ?, segretario_id = ? WHERE id = ?');
+      stmt.execute([
+        data['data_prima'],
+        data['data_seconda'],
+        data['data_fine'],
+        data['luogo'],
+        data['stato'],
+        data['presidente_id'],
+        data['segretario_id'],
+        assembleaId
+      ]);
+      stmt.dispose();
+      
       // Pulisci relazioni esistenti per l'update
       db.execute('DELETE FROM argomenti WHERE assemblea_id = ?', [assembleaId]);
       db.execute('DELETE FROM assemblea_partecipanti WHERE assemblea_id = ?', [assembleaId]);
@@ -199,11 +225,11 @@ void _saveAssembleaTask(_DbTaskParams params) {
 
     // Salva Argomenti e relative Votazioni
     for (final argData in argomenti) {
-      final argStmt = db.prepare('INSERT INTO argomenti (assemblea_id, titolo, testo) VALUES (?, ?, ?)');
-      argStmt.execute([assembleaId, argData['titolo'], argData['testo']]);
+      final argStmt = db.prepare('INSERT INTO argomenti (assemblea_id, titolo, testo, tipo, metadata) VALUES (?, ?, ?, ?, ?)');
+      argStmt.execute([assembleaId, argData['titolo'], argData['testo'], argData['tipo'], argData['metadata']]);
       final int argomentoId = db.lastInsertRowId;
-      argStmt.close();
-
+      argStmt.dispose();
+      
       final List<Map<String, dynamic>> votazioni = argData['votazioni'];
       for (final votData in votazioni) {
         db.execute(
@@ -230,7 +256,7 @@ void _deleteAssembleaTask(_DbTaskParams params) {
     db.execute('PRAGMA foreign_keys = ON;');
     db.execute('DELETE FROM assemblee WHERE id = ?', [params.data!['id']]);
   } finally {
-    db.close();
+    db.dispose();
   }
 }
 
@@ -242,7 +268,7 @@ void _addCondominoTask(_DbTaskParams params) {
     final data = params.data!;
     final stmt = db.prepare('INSERT INTO condomini (nome, indirizzo, millesimi) VALUES (?, ?, ?)');
     stmt.execute([data['nome'], data['indirizzo'], data['millesimi']]);
-    stmt.close();
+    stmt.dispose();
   } finally {
     db.close();
   }
@@ -255,7 +281,7 @@ void _updateCondominoTask(_DbTaskParams params) {
     final data = params.data!;
     final stmt = db.prepare('UPDATE condomini SET nome = ?, indirizzo = ?, millesimi = ? WHERE id = ?');
     stmt.execute([data['nome'], data['indirizzo'], data['millesimi'], data['id']]);
-    stmt.close();
+    stmt.dispose();
   } finally {
     db.close();
   }
@@ -286,7 +312,7 @@ class DatabaseHelper {
     return _dbPath!;
   }
 
-  _DbTaskParams _getParams(String path, {Map<String, dynamic>? data}) =>
+  _DbTaskParams _getParams(String path, {Map<String, dynamic>? data}) => 
       _DbTaskParams(path: path, password: _password, data: data);
 
   Future<void> _ensureInitialized() async {

@@ -10,6 +10,8 @@ class AssembleaModel extends Assemblea {
     required super.luogo,
     required super.stato,
     required super.partecipantiIds,
+    super.presidenteId,
+    super.segretarioId,
     required super.argomenti,
   });
 
@@ -22,6 +24,8 @@ class AssembleaModel extends Assemblea {
       luogo: map['luogo'] ?? '',
       stato: map['stato'] == 'avvenuta' ? AssembleaStato.avvenuta : AssembleaStato.nonAvvenuta,
       partecipantiIds: partecipanti,
+      presidenteId: map['presidente_id'],
+      segretarioId: map['segretario_id'],
       argomenti: argomenti,
     );
   }
@@ -34,6 +38,8 @@ class AssembleaModel extends Assemblea {
       'data_fine': dataFine?.toIso8601String(),
       'luogo': luogo,
       'stato': stato == AssembleaStato.avvenuta ? 'avvenuta' : 'nonAvvenuta',
+      'presidente_id': presidenteId,
+      'segretario_id': segretarioId,
     };
   }
 
@@ -46,6 +52,8 @@ class AssembleaModel extends Assemblea {
       luogo: assemblea.luogo,
       stato: assemblea.stato,
       partecipantiIds: assemblea.partecipantiIds,
+      presidenteId: assemblea.presidenteId,
+      segretarioId: assemblea.segretarioId,
       argomenti: assemblea.argomenti,
     );
   }
