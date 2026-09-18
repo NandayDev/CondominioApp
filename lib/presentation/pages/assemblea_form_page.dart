@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../data/models/votazione_model.dart';
 import '../../domain/entities/argomento.dart';
 import '../../domain/entities/assemblea.dart';
 import '../../domain/entities/condomino.dart';
@@ -338,7 +339,7 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                     ...partecipanti.map((p) {
                       final votazione = argomento.votazioni.firstWhere(
                         (v) => v.condominoId == p.id,
-                        orElse: () => Votazione(condominoId: p.id!, esito: EsitoVotazione.astenuto),
+                        orElse: () => VotazioneModel(condominoId: p.id!, esito: EsitoVotazione.astenuto),
                       );
                       return Row(
                         children: [
@@ -362,7 +363,7 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                             selected: {votazione.esito},
                             onSelectionChanged: (newSelection) {
                               setState(() {
-                                final newVot = Votazione(condominoId: p.id!, esito: newSelection.first);
+                                final newVot = VotazioneModel(condominoId: p.id!, esito: newSelection.first);
                                 final existingIndex = argomento.votazioni.indexWhere((v) => v.condominoId == p.id);
                                 if (existingIndex != -1) {
                                   argomento.votazioni[existingIndex] = newVot;

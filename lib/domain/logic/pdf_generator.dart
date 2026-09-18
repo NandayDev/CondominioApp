@@ -10,7 +10,15 @@ import '../entities/votazione.dart';
 
 class PdfGenerator {
   static Future<void> generateAndShare(Assemblea assemblea, List<Condomino> allCondomini) async {
-    final pdf = pw.Document();
+    final fontBase = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: fontBase,
+        bold: fontBold,
+      ),
+    );
 
     final partecipanti = allCondomini.where((c) => assemblea.partecipantiIds.contains(c.id)).toList();
     final presidente = allCondomini.firstWhere((c) => c.id == assemblea.presidenteId);
