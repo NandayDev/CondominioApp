@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "dev.nanday" "\0"
-            VALUE "FileDescription", "condominio_app" "\0"
+VALUE "FileDescription", "Condominio App - by NaNDay" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "condominio_app" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 dev.nanday. All rights reserved." "\0"
             VALUE "OriginalFilename", "condominio_app.exe" "\0"
-            VALUE "ProductName", "condominio_app" "\0"
+VALUE "ProductName", "Condominio App - by NaNDay" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

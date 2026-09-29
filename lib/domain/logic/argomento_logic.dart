@@ -76,7 +76,13 @@ class ArgomentoLogic {
 
       case TipoArgomento.custom:
         if (argomento.metadata['richiedeVotazione'] == true) {
-          return "L'assemblea delibera $modalita di ${approvato ? 'accogliere' : 'respingere'} la proposta: ${argomento.testo}";
+          String testoPulito = argomento.testo;
+          final regexPrefix = RegExp(
+              r"^L'assemblea delibera (all'unanimità|a maggioranza) di (accogliere|respingere) la proposta:\s*", caseSensitive: false);
+          while (regexPrefix.hasMatch(testoPulito)) {
+            testoPulito = testoPulito.replaceFirst(regexPrefix, '');
+          }
+          return "L'assemblea delibera $modalita di ${approvato ? 'accogliere' : 'respingere'} la proposta: $testoPulito";
         }
         return argomento.testo;
 

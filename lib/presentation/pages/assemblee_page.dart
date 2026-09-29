@@ -63,7 +63,8 @@ class AssembleeView extends StatelessWidget {
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ExpansionTile(
-                    title: Text("Assemblea del ${DateFormat('dd/MM/yyyy').format(assemblea.dataSecondaConvocazione)}"),
+                    title: Text("Assemblea ${assemblea.tipo == TipoAssemblea.straordinaria ? 'Straordinaria' : 'Ordinaria'} del ${DateFormat(
+                        'dd/MM/yyyy').format(assemblea.dataSecondaConvocazione)}"),
                     subtitle: Text("Luogo: ${assemblea.luogo} - ${assemblea.stato == AssembleaStato.avvenuta ? 'Avvenuta' : 'Non avvenuta'}"),
                     children: [
                       Padding(
@@ -178,6 +179,10 @@ class AssembleeView extends StatelessWidget {
   }
 
   void _copyToClipboard(BuildContext context, Assemblea assemblea) async {
+    if (assemblea.stato == AssembleaStato.nonAvvenuta) {
+      _showCantGenerateOutput(context, "copiare testo");
+      return;
+    }
     final condomini = await sl<CondominiCubit>().fetchCondomini();
     final text = VerbaleFormatter.generatePlainText(assemblea, condomini);
     Clipboard.setData(ClipboardData(text: text));
@@ -185,7 +190,25 @@ class AssembleeView extends StatelessWidget {
   }
 
   void _generatePdf(BuildContext context, Assemblea assemblea) async {
+    if (assemblea.stato == AssembleaStato.nonAvvenuta) {
+      _showCantGenerateOutput(context, "generare PDF");
+      return;
+    }
     final condomini = await sl<CondominiCubit>().fetchCondomini();
     PdfGenerator.generateAndShare(assemblea, condomini);
+  }
+
+  void _showCantGenerateOutput(BuildContext context, String action) {
+    showDialog(
+      context: context,
+      builder: (dContext) =>
+          AlertDialog(
+            title: Text("Impossibile $action"),
+            content: Text("L'assemblea non è ancora avvenuta: impossibile $action"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dContext), child: const Text("Ok")),
+            ],
+          ),
+    );
   }
 }

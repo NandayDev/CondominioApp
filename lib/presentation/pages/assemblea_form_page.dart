@@ -27,7 +27,9 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
   DateTime? _dataFine;
   late String _luogo;
   late AssembleaStato _stato;
+  late TipoAssemblea _tipo;
   late List<int> _partecipantiIds;
+  late Map<int, String> _deleghe;
   int? _presidenteId;
   int? _segretarioId;
   late List<Argomento> _argomenti;
@@ -44,7 +46,9 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
     _dataFine = widget.assemblea?.dataFine;
     _luogo = widget.assemblea?.luogo ?? "";
     _stato = widget.assemblea?.stato ?? AssembleaStato.nonAvvenuta;
+    _tipo = widget.assemblea?.tipo ?? TipoAssemblea.ordinaria;
     _partecipantiIds = List.from(widget.assemblea?.partecipantiIds ?? []);
+    _deleghe = Map<int, String>.from(widget.assemblea?.deleghe ?? {});
     _presidenteId = widget.assemblea?.presidenteId;
     _segretarioId = widget.assemblea?.segretarioId;
     _argomenti = List.from(widget.assemblea?.argomenti ?? []);
@@ -79,13 +83,21 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
     final partecipanti = allCondomini.where((c) => _partecipantiIds.contains(c.id)).toList();
 
     final argomentiAggiornati = _argomenti.map((arg) {
+      String testo = arg.testo;
+      if (arg.tipo == TipoArgomento.custom) {
+        final regexPrefix = RegExp(
+            r"^L'assemblea delibera (all'unanimità|a maggioranza) di (accogliere|respingere) la proposta:\s*", caseSensitive: false);
+        while (regexPrefix.hasMatch(testo)) {
+          testo = testo.replaceFirst(regexPrefix, '');
+        }
+      }
       return Argomento(
         id: arg.id,
         titolo: arg.titolo,
         tipo: arg.tipo,
         metadata: arg.metadata,
         votazioni: arg.votazioni,
-        testo: ArgomentoLogic.generaTesto(arg, partecipanti),
+        testo: arg.tipo == TipoArgomento.custom ? testo : ArgomentoLogic.generaTesto(arg, partecipanti),
       );
     }).toList();
 
@@ -96,7 +108,9 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
       dataFine: _dataFine,
       luogo: _luogo,
       stato: _stato,
+      tipo: _tipo,
       partecipantiIds: _partecipantiIds,
+      deleghe: _deleghe,
       presidenteId: _presidenteId,
       segretarioId: _segretarioId,
       argomenti: argomentiAggiornati,
@@ -169,6 +183,21 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                       validator: (val) => val == null || val.isEmpty ? "Campo obbligatorio" : null,
                     ),
                     const SizedBox(height: 16),
+                    DropdownButtonFormField<TipoAssemblea>(
+                      initialValue: _tipo,
+                      decoration: const InputDecoration(labelText: "Tipo Assemblea *", border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: TipoAssemblea.ordinaria, child: Text("Ordinaria")),
+                        DropdownMenuItem(value: TipoAssemblea.straordinaria, child: Text("Straordinaria")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _tipo = val);
+                          _markDirty();
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     _buildDateTile("Prima Convocazione", _dataPrima, (d) {
                       setState(() => _dataPrima = d);
                       _markDirty();
@@ -222,8 +251,9 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                       spacing: 8,
                       children: allCondomini.map((c) {
                         final isSelected = _partecipantiIds.contains(c.id);
+                        final haDelega = _deleghe[c.id]?.isNotEmpty == true;
                         return FilterChip(
-                          label: Text(c.nome),
+                          label: Text(haDelega ? "${c.nome} (Delega)" : c.nome),
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
@@ -231,6 +261,7 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                                 _partecipantiIds.add(c.id!);
                               } else {
                                 _partecipantiIds.remove(c.id);
+                                _deleghe.remove(c.id);
                                 if (_presidenteId == c.id) _presidenteId = null;
                                 if (_segretarioId == c.id) _segretarioId = null;
                                 for (var arg in _argomenti) {
@@ -243,6 +274,68 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                         );
                       }).toList(),
                     ),
+                    if (partecipanti.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Card(
+                        color: Colors.grey[50],
+                        margin: EdgeInsets.zero,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "Deleghe (lascia vuoto se presente di persona):",
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              ...partecipanti.map((c) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(
+                                          "${c.nome}:",
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 3,
+                                        child: TextFormField(
+                                          key: ValueKey("delega_${c.id}"),
+                                          initialValue: _deleghe[c.id] ?? '',
+                                          decoration: const InputDecoration(
+                                            hintText: "Nome delegato...",
+                                            labelText: "Delegato a",
+                                            isDense: true,
+                                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (val) {
+                                            setState(() {
+                                              if (val
+                                                  .trim()
+                                                  .isEmpty) {
+                                                _deleghe.remove(c.id);
+                                              } else {
+                                                _deleghe[c.id!] = val.trim();
+                                              }
+                                            });
+                                            _markDirty();
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -310,6 +403,18 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_argomenti.length > 1 && index > 0)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_upward, size: 20),
+                    tooltip: "Sposta su",
+                    onPressed: () => _moveArgomento(index, index - 1),
+                  ),
+                if (_argomenti.length > 1 && index < _argomenti.length - 1)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_downward, size: 20),
+                    tooltip: "Sposta giù",
+                    onPressed: () => _moveArgomento(index, index + 1),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.edit, size: 20),
                   onPressed: () => _showDatiArgomentoDialog(argomento.tipo, existingArgomento: argomento, index: index),
@@ -317,7 +422,18 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: () {
-                    setState(() => _argomenti.removeAt(index));
+                    setState(() {
+                      _argomenti.removeAt(index);
+                      final newMap = <int, bool>{};
+                      for (int i = 0; i < _argomenti.length; i++) {
+                        final oldKey = i >= index ? i + 1 : i;
+                        if (_argomentiEspansi.containsKey(oldKey)) {
+                          newMap[i] = _argomentiEspansi[oldKey]!;
+                        }
+                      }
+                      _argomentiEspansi.clear();
+                      _argomentiEspansi.addAll(newMap);
+                    });
                     _markDirty();
                   },
                 ),
@@ -384,6 +500,30 @@ class _AssembleaFormPageState extends State<AssembleaFormPage> {
         ],
       ),
     );
+  }
+
+  void _moveArgomento(int oldIndex, int newIndex) {
+    if (newIndex < 0 || newIndex >= _argomenti.length) return;
+    setState(() {
+      final item = _argomenti.removeAt(oldIndex);
+      _argomenti.insert(newIndex, item);
+
+      final oldEspanso = _argomentiEspansi[oldIndex];
+      final newEspanso = _argomentiEspansi[newIndex];
+
+      if (newEspanso != null) {
+        _argomentiEspansi[oldIndex] = newEspanso;
+      } else {
+        _argomentiEspansi.remove(oldIndex);
+      }
+
+      if (oldEspanso != null) {
+        _argomentiEspansi[newIndex] = oldEspanso;
+      } else {
+        _argomentiEspansi.remove(newIndex);
+      }
+    });
+    _markDirty();
   }
 
   void _addArgomento(List<Condomino> allCondomini) {

@@ -29,10 +29,15 @@ class VerbaleFormatter {
     sb.writeln("CONDOMINIO Via Colli 4, C.F. 92049260422");
     sb.writeln("Indirizzo: Via dei Colli 4, Jesi (AN)");
     sb.writeln("");
-    sb.writeln("VERBALE DI ASSEMBLEA ORDINARIA DEL ${df.format(assemblea.dataSecondaConvocazione)}");
+    sb.writeln("VERBALE DI ASSEMBLEA ${assemblea.tipo == TipoAssemblea.straordinaria ? 'STRAORDINARIA' : 'ORDINARIA'} DEL ${df.format(
+        assemblea.dataSecondaConvocazione)}");
     sb.writeln("");
     sb.writeln(
-      "L'anno ${assemblea.dataSecondaConvocazione.year}, il giorno ${assemblea.dataSecondaConvocazione.day} del mese di ${formatMonth(assemblea.dataSecondaConvocazione.month)} alle ore ${tf.format(assemblea.dataSecondaConvocazione)}, in ${assemblea.luogo} si è riunita in seconda convocazione l'assemblea ordinaria del condominio in epigrafe, per discutere e deliberare sul seguente ordine del giorno:",
+      "L'anno ${assemblea.dataSecondaConvocazione.year}, il giorno ${assemblea.dataSecondaConvocazione.day} del mese di ${formatMonth(
+          assemblea.dataSecondaConvocazione.month)} alle ore ${tf.format(assemblea.dataSecondaConvocazione)}, in ${assemblea
+          .luogo} si è riunita in seconda convocazione l'assemblea ${assemblea.tipo == TipoAssemblea.straordinaria
+          ? 'straordinaria'
+          : 'ordinaria'} del condominio in epigrafe, per discutere e deliberare sul seguente ordine del giorno:",
     );
     for (var arg in assemblea.argomenti) {
       sb.writeln("● ${arg.titolo}");
@@ -40,7 +45,14 @@ class VerbaleFormatter {
     sb.writeln("");
     sb.writeln("Sono presenti i sigg. condòmini:");
     for (var c in partecipanti) {
-      sb.writeln("● ${c.nome}, millesimi ${c.millesimi.toStringAsFixed(1)}/1000");
+      final delega = assemblea.deleghe[c.id];
+      if (delega != null && delega
+          .trim()
+          .isNotEmpty) {
+        sb.writeln("● ${c.nome} (per delega a $delega), millesimi ${c.millesimi.toStringAsFixed(1)}/1000");
+      } else {
+        sb.writeln("● ${c.nome}, millesimi ${c.millesimi.toStringAsFixed(1)}/1000");
+      }
     }
     sb.writeln("il tutto per un totale di n. ${partecipanti.length} condòmini e n. ${totalMill.toStringAsFixed(1)}/1000 millesimi.");
     sb.writeln("");

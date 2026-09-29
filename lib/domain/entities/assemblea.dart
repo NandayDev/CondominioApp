@@ -4,6 +4,8 @@ import 'argomento.dart';
 
 enum AssembleaStato { avvenuta, nonAvvenuta }
 
+enum TipoAssemblea { ordinaria, straordinaria }
+
 class Assemblea extends Equatable {
   final int? id;
   final DateTime dataPrimaConvocazione;
@@ -11,7 +13,9 @@ class Assemblea extends Equatable {
   final DateTime? dataFine;
   final String luogo;
   final AssembleaStato stato;
+  final TipoAssemblea tipo;
   final List<int> partecipantiIds;
+  final Map<int, String> deleghe; // condominoId -> nomeDelegato
   final int? presidenteId; // Nuova colonna
   final int? segretarioId; // Nuova colonna
   final List<Argomento> argomenti;
@@ -23,7 +27,9 @@ class Assemblea extends Equatable {
     this.dataFine,
     required this.luogo,
     required this.stato,
+    this.tipo = TipoAssemblea.ordinaria,
     required this.partecipantiIds,
+    this.deleghe = const {},
     this.presidenteId,
     this.segretarioId,
     required this.argomenti,
@@ -37,7 +43,9 @@ class Assemblea extends Equatable {
     dataFine,
     luogo,
     stato,
+    tipo,
     partecipantiIds,
+    deleghe,
     presidenteId,
     segretarioId,
     argomenti,

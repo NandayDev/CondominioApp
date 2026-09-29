@@ -106,6 +106,27 @@ void _initDbTask(_DbTaskParams params) {
       db.execute('ALTER TABLE assemblee ADD COLUMN presidente_id INTEGER');
       db.execute('ALTER TABLE assemblee ADD COLUMN segretario_id INTEGER');
       db.execute('PRAGMA user_version = 6');
+      currentVersion = 6;
+    }
+
+    if (currentVersion < 7) {
+      db.execute('''
+        CREATE TABLE assemblea_deleghe (
+          assemblea_id INTEGER NOT NULL,
+          condomino_id INTEGER NOT NULL,
+          delegato TEXT NOT NULL,
+          PRIMARY KEY (assemblea_id, condomino_id),
+          FOREIGN KEY (assemblea_id) REFERENCES assemblee (id) ON DELETE CASCADE,
+          FOREIGN KEY (condomino_id) REFERENCES condomini (id) ON DELETE CASCADE
+        )
+      ''');
+      db.execute('PRAGMA user_version = 7');
+      currentVersion = 7;
+    }
+
+    if (currentVersion < 8) {
+      db.execute("ALTER TABLE assemblee ADD COLUMN tipo TEXT NOT NULL DEFAULT 'ordinaria'");
+      db.execute('PRAGMA user_version = 8');
     }
 
   } finally {
@@ -144,6 +165,15 @@ List<Map<String, dynamic>> _getAssembleeTask(_DbTaskParams params) {
       );
       final List<int> partecipanti = partecipantiRS.map((p) => p['condomino_id'] as int).toList();
 
+      // Deleghe
+      final ResultSet delegheRS = db.select(
+          'SELECT condomino_id, delegato FROM assemblea_deleghe WHERE assemblea_id = ?',
+          [assembleaId]
+      );
+      final Map<int, String> deleghe = {
+        for (final d in delegheRS) d['condomino_id'] as int: d['delegato'] as String
+      };
+
       // Argomenti
       final List<Map<String, dynamic>> argomenti = [];
       final ResultSet argomentiRS = db.select(
@@ -167,6 +197,7 @@ List<Map<String, dynamic>> _getAssembleeTask(_DbTaskParams params) {
 
       final Map<String, dynamic> assembleaMap = Map<String, dynamic>.from(row);
       assembleaMap['partecipanti'] = partecipanti;
+      assembleaMap['deleghe'] = deleghe;
       assembleaMap['argomenti'] = argomenti;
       result.add(assembleaMap);
     }
@@ -185,6 +216,7 @@ void _saveAssembleaTask(_DbTaskParams params) {
 
     final Map<String, dynamic> data = params.data!;
     final List<int> partecipanti = data['partecipanti'];
+    final Map<int, String> deleghe = Map<int, String>.from(data['deleghe'] ?? {});
     final List<Map<String, dynamic>> argomenti = data['argomenti'];
 
     db.execute('BEGIN TRANSACTION');
@@ -192,21 +224,31 @@ void _saveAssembleaTask(_DbTaskParams params) {
     int assembleaId;
     if (data['id'] == null) {
       final stmt = db.prepare(
-          'INSERT INTO assemblee (data_prima, data_seconda, data_fine, luogo, stato, presidente_id, segretario_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+          'INSERT INTO assemblee (data_prima, data_seconda, data_fine, luogo, stato, tipo, presidente_id, segretario_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
       stmt.execute(
-          [data['data_prima'], data['data_seconda'], data['data_fine'], data['luogo'], data['stato'], data['presidente_id'], data['segretario_id']]);
+          [
+            data['data_prima'],
+            data['data_seconda'],
+            data['data_fine'],
+            data['luogo'],
+            data['stato'],
+            data['tipo'],
+            data['presidente_id'],
+            data['segretario_id']
+          ]);
       assembleaId = db.lastInsertRowId;
       stmt.dispose();
     } else {
       assembleaId = data['id'];
       final stmt = db.prepare(
-          'UPDATE assemblee SET data_prima = ?, data_seconda = ?, data_fine = ?, luogo = ?, stato = ?, presidente_id = ?, segretario_id = ? WHERE id = ?');
+          'UPDATE assemblee SET data_prima = ?, data_seconda = ?, data_fine = ?, luogo = ?, stato = ?, tipo = ?, presidente_id = ?, segretario_id = ? WHERE id = ?');
       stmt.execute([
         data['data_prima'],
         data['data_seconda'],
         data['data_fine'],
         data['luogo'],
         data['stato'],
+        data['tipo'],
         data['presidente_id'],
         data['segretario_id'],
         assembleaId
@@ -216,11 +258,24 @@ void _saveAssembleaTask(_DbTaskParams params) {
       // Pulisci relazioni esistenti per l'update
       db.execute('DELETE FROM argomenti WHERE assemblea_id = ?', [assembleaId]);
       db.execute('DELETE FROM assemblea_partecipanti WHERE assemblea_id = ?', [assembleaId]);
+      db.execute('DELETE FROM assemblea_deleghe WHERE assemblea_id = ?', [assembleaId]);
     }
 
     // Salva Partecipanti
     for (final condominoId in partecipanti) {
       db.execute('INSERT INTO assemblea_partecipanti (assemblea_id, condomino_id) VALUES (?, ?)', [assembleaId, condominoId]);
+    }
+
+    // Salva Deleghe
+    for (final entry in deleghe.entries) {
+      if (entry.value
+          .trim()
+          .isNotEmpty) {
+        db.execute(
+            'INSERT INTO assemblea_deleghe (assemblea_id, condomino_id, delegato) VALUES (?, ?, ?)',
+            [assembleaId, entry.key, entry.value.trim()]
+        );
+      }
     }
 
     // Salva Argomenti e relative Votazioni
@@ -354,13 +409,14 @@ class DatabaseHelper {
 
     return maps.map((map) {
       final List<int> partecipanti = List<int>.from(map['partecipanti']);
+      final Map<int, String> deleghe = Map<int, String>.from(map['deleghe'] ?? {});
       final List<ArgomentoModel> argomenti = (map['argomenti'] as List).map((argMap) {
         final List<VotazioneModel> votazioni = (argMap['votazioni'] as List)
             .map((v) => VotazioneModel.fromMap(v as Map<String, dynamic>))
             .toList();
         return ArgomentoModel.fromMap(argMap as Map<String, dynamic>, votazioni);
       }).toList();
-      return AssembleaModel.fromMap(map, partecipanti, argomenti);
+      return AssembleaModel.fromMap(map, partecipanti, argomenti, deleghe);
     }).toList();
   }
 
@@ -370,6 +426,7 @@ class DatabaseHelper {
 
     final Map<String, dynamic> data = assemblea.toMap();
     data['partecipanti'] = assemblea.partecipantiIds;
+    data['deleghe'] = assemblea.deleghe;
     data['argomenti'] = assemblea.argomenti.map((arg) {
       final argModel = ArgomentoModel.fromEntity(arg);
       final Map<String, dynamic> argMap = argModel.toMap(0); // id assemblea gestito nel task

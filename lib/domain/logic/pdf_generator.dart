@@ -7,6 +7,7 @@ import '../entities/argomento.dart';
 import '../entities/assemblea.dart';
 import '../entities/condomino.dart';
 import '../entities/votazione.dart';
+import 'argomento_logic.dart';
 
 class PdfGenerator {
   static Future<void> generateAndShare(Assemblea assemblea, List<Condomino> allCondomini) async {
@@ -44,7 +45,8 @@ class PdfGenerator {
                   pw.SizedBox(height: 20),
                   pw.Center(
                     child: pw.Text(
-                      "VERBALE DI ASSEMBLEA ORDINARIA DEL ${df.format(assemblea.dataSecondaConvocazione)}",
+                      "VERBALE DI ASSEMBLEA ${assemblea.tipo == TipoAssemblea.straordinaria ? 'STRAORDINARIA' : 'ORDINARIA'} DEL ${df.format(
+                          assemblea.dataSecondaConvocazione)}",
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
                     ),
                   ),
@@ -55,14 +57,25 @@ class PdfGenerator {
 
             pw.Paragraph(
               text:
-                  "L'anno ${assemblea.dataSecondaConvocazione.year}, il giorno ${assemblea.dataSecondaConvocazione.day} del mese di ${_getMonthName(assemblea.dataSecondaConvocazione.month)} alle ore ${tf.format(assemblea.dataSecondaConvocazione)}, in ${assemblea.luogo} si è riunita in seconda convocazione l'assemblea ordinaria del condominio in epigrafe, per discutere e deliberare sul seguente ordine del giorno:",
+              "L'anno ${assemblea.dataSecondaConvocazione.year}, il giorno ${assemblea.dataSecondaConvocazione.day} del mese di ${_getMonthName(
+                  assemblea.dataSecondaConvocazione.month)} alle ore ${tf.format(assemblea.dataSecondaConvocazione)}, in ${assemblea
+                  .luogo} si è riunita in seconda convocazione l'assemblea ${assemblea.tipo == TipoAssemblea.straordinaria
+                  ? 'straordinaria'
+                  : 'ordinaria'} del condominio in epigrafe, per discutere e deliberare sul seguente ordine del giorno:",
             ),
 
             ...assemblea.argomenti.map((a) => pw.Bullet(text: a.titolo)),
 
             pw.SizedBox(height: 10),
             pw.Text("Sono presenti i sigg. condòmini:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ...partecipanti.map((c) => pw.Bullet(text: "${c.nome}, millesimi ${c.millesimi.toStringAsFixed(1)}/1000")),
+            pw.SizedBox(height: 5),
+            ...partecipanti.map((c) {
+              final delega = assemblea.deleghe[c.id];
+              final textDelega = (delega != null && delega
+                  .trim()
+                  .isNotEmpty) ? " (per delega a $delega)" : "";
+              return pw.Bullet(text: "${c.nome}$textDelega, millesimi ${c.millesimi.toStringAsFixed(1)}/1000");
+            }),
 
             pw.Paragraph(
               text: "il tutto per un totale di n. ${partecipanti.length} condòmini e n. ${totalMillesimi.toStringAsFixed(1)}/1000 millesimi.",
@@ -87,18 +100,19 @@ class PdfGenerator {
               textStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
 
-            ...assemblea.argomenti.asMap().entries.map((entry) {
+            ...assemblea.argomenti
+                .asMap()
+                .entries
+                .expand((entry) {
               final i = entry.key + 1;
               final arg = entry.value;
-              return pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.SizedBox(height: 10),
-                  pw.Text("$i) ${arg.titolo}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Paragraph(text: arg.testo),
-                  if (arg.tipo != TipoArgomento.custom || arg.metadata['richiedeVotazione'] == true) _buildVotazionePdf(arg, partecipanti),
-                ],
-              );
+              return [
+                pw.SizedBox(height: 10),
+                pw.Text("$i) ${arg.titolo}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Paragraph(text: ArgomentoLogic.generaTesto(arg, partecipanti)),
+                if (arg.tipo != TipoArgomento.custom || arg.metadata['richiedeVotazione'] == true) _buildVotazionePdf(arg, partecipanti),
+              ];
             }),
 
             pw.SizedBox(height: 20),
@@ -113,8 +127,8 @@ class PdfGenerator {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Column(children: [pw.Text("____________________"), pw.Text("Firma del Presidente")]),
-                pw.Column(children: [pw.Text("____________________"), pw.Text("Firma del Segretario")]),
+                pw.Column(children: [pw.Text("____________________________________"), pw.Text("Firma del Presidente")]),
+                pw.Column(children: [pw.Text("____________________________________"), pw.Text("Firma del Segretario")]),
               ],
             ),
           ];
